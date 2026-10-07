@@ -1,0 +1,29 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database
+sqlalchemy==2.0.36
+aiosqlite==0.20.0
+
+# Migrations
+alembic==1.14.1
+
+# Validation (included with FastAPI, pinned for clarity)
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Environment
+python-dotenv==1.0.1
+
+# WebSocket support (included with uvicorn[standard])
+websockets==14.2
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1

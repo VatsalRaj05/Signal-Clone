@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/*
+ * Signal Clone — Global Styles
+ *
+ * Uses Tailwind v4's @import syntax.
+ * Custom design tokens and utility classes will be added here
+ * as the UI evolves in later phases.
+ */
+
+:root {
+  --font-inter: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+html {
+  font-family: var(--font-inter);
+}
+
+/* Smooth scrolling for chat panels */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbars in chat containers while keeping scroll functionality */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
