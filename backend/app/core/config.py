@@ -21,9 +21,14 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_database_url(cls, v: str) -> str:
-        """Render provides postgres:// but SQLAlchemy async needs postgresql+asyncpg://."""
-        if v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        """Render provides postgres:// or postgresql:// but SQLAlchemy async needs postgresql+asyncpg://."""
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            if "sslmode=" in v:
+                v = v.replace("sslmode=require", "ssl=require").replace("sslmode=prefer", "ssl=prefer")
         return v
 
     # JWT
