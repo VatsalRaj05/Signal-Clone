@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables."""
 
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from functools import lru_cache
 
 
@@ -16,6 +17,14 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./signal_clone.db"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        """Render provides postgres:// but SQLAlchemy async needs postgresql+asyncpg://."""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
 
     # JWT
     JWT_SECRET: str = "CHANGE-ME-IN-PRODUCTION"

@@ -73,10 +73,15 @@ class AuthService:
             "access_token": access_token,
             "token_type": "bearer",
             "user": {
-                "id": user.id,
+                "id": str(user.id),
                 "username": user.username,
                 "phone": user.phone,
-                "display_name": user.display_name
+                "display_name": user.display_name,
+                "avatar_url": user.avatar_url,
+                "is_online": user.is_online,
+                "last_seen": user.last_seen.isoformat() if user.last_seen else None,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
             }
         }
 
@@ -109,9 +114,14 @@ class AuthService:
             "access_token": access_token,
             "token_type": "bearer",
             "user": {
-                "id": user.id,
+                "id": str(user.id),
                 "username": user.username,
                 "phone": user.phone,
-                "display_name": user.display_name
+                "display_name": user.display_name,
+                "avatar_url": user.avatar_url,
+                "is_online": user.is_online,
+                "last_seen": user.last_seen.isoformat() if user.last_seen else None,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "updated_at": user.updated_at.isoformat() if user.updated_at else None,
             }
         }

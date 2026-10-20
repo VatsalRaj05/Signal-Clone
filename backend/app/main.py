@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
+import app.models  # Ensure all models are registered on Base.metadata
 from app.routers import health, auth, users, contacts, conversations, websocket
 
 settings = get_settings()
@@ -14,10 +15,9 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle hook.
-
-    In production and development, Alembic migrations should be the sole migration path.
-    """
+    """Startup/shutdown lifecycle hook."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
 
 
@@ -27,10 +27,14 @@ app = FastAPI(
 )
 
 # -- Middleware ---------------------------------------------------------------
+cors_origins = list(settings.CORS_ORIGINS)
+allow_all = "*" in cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all else cors_origins,
+    allow_origin_regex=None if allow_all else r"https://.*\.onrender\.com",
+    allow_credentials=not allow_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )

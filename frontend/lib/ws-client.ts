@@ -16,8 +16,9 @@ import type { WSEvent, WSEventType } from "@/types";
 
 type EventHandler<T = unknown> = (payload: T) => void;
 
-const WS_BASE_URL =
-  process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws";
+const WS_BASE_URL = (
+  process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws"
+).replace(/\/$/, "");
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 1_000;
