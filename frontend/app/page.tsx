@@ -404,27 +404,58 @@ function NewGroupModal({
   onGroupCreated: (convId: string) => void;
 }) {
   const [name, setName] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<ContactUser[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
   const qc = useQueryClient();
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const { data: contacts = [] } = useQuery({
     queryKey: ["contacts"],
     queryFn: contactsService.list,
   });
 
+  const { data: searchResults = [], isLoading: searchLoading } = useQuery({
+    queryKey: ["groupUserSearch", debouncedQuery],
+    queryFn: () => contactsService.search(debouncedQuery),
+    enabled: debouncedQuery.trim().length > 0,
+  });
+
+  const displayList: ContactUser[] = debouncedQuery.trim().length > 0
+    ? searchResults
+    : contacts.map((c) => c.contact_user);
+
   const createMutation = useMutation({
-    mutationFn: () => conversationService.createGroup(name, selectedIds),
+    mutationFn: () =>
+      conversationService.createGroup(
+        name.trim(),
+        selectedUsers.map((u) => u.id)
+      ),
     onSuccess: (conv) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       onGroupCreated(conv.id);
       onClose();
     },
+    onError: (err: any) => {
+      setErrorMsg(err?.message || "Failed to create group. Please try again.");
+    },
   });
 
-  const toggleUser = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  const toggleUser = (user: ContactUser) => {
+    setSelectedUsers((prev) =>
+      prev.some((u) => u.id === user.id)
+        ? prev.filter((u) => u.id !== user.id)
+        : [...prev, user]
     );
+  };
+
+  const removeUser = (userId: string) => {
+    setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
   return (
@@ -440,68 +471,120 @@ function NewGroupModal({
           </button>
         </div>
 
-        <div className="p-4 border-b border-zinc-800">
+        {errorMsg && (
+          <div className="mx-4 mt-3 p-2.5 rounded-lg bg-red-900/50 border border-red-500/50 text-red-200 text-xs">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="p-4 border-b border-zinc-800 space-y-3">
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Group Name"
+            onChange={(e) => {
+              setName(e.target.value);
+              if (errorMsg) setErrorMsg("");
+            }}
+            placeholder="Group Name *"
             className="w-full bg-[#16171b] text-white placeholder-zinc-500 rounded-xl px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-[#2c6bed] transition border border-zinc-800"
           />
+
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search people to add…"
+              className="w-full bg-[#16171b] text-white placeholder-zinc-500 rounded-xl pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-[#2c6bed] transition border border-zinc-800"
+            />
+          </div>
         </div>
 
-        <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-          Select Members ({selectedIds.length})
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
-          {contacts.map((contact) => {
-            const user = contact.contact_user;
-            const isSelected = selectedIds.includes(user.id);
-            return (
-              <button
-                key={user.id}
-                onClick={() => toggleUser(user.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition text-left ${
-                  isSelected ? "bg-[#2c6bed]/20 text-white" : "hover:bg-zinc-800/60"
-                }`}
+        {selectedUsers.length > 0 && (
+          <div className="px-4 py-2 border-b border-zinc-800/60 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+            {selectedUsers.map((u) => (
+              <span
+                key={u.id}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2c6bed]/20 text-[#6ba1ff] text-xs font-medium border border-[#2c6bed]/30"
               >
-                <div
-                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition ${
-                    isSelected
-                      ? "bg-[#2c6bed] border-[#2c6bed] text-white"
-                      : "border-zinc-700 bg-zinc-800"
+                <span>{u.display_name ?? u.username}</span>
+                <button
+                  type="button"
+                  onClick={() => removeUser(u.id)}
+                  className="hover:text-white transition"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider flex justify-between">
+          <span>{debouncedQuery.trim() ? "Search Results" : "Contacts"}</span>
+          <span>{selectedUsers.length} selected</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1 min-h-[160px]">
+          {searchLoading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-[#2c6bed]" />
+            </div>
+          )}
+
+          {!searchLoading && displayList.length === 0 && (
+            <div className="text-center text-zinc-500 text-xs py-8 px-4">
+              {debouncedQuery.trim()
+                ? "No users found matching that username."
+                : "No contacts yet. Type a username in the search box above to find members."}
+            </div>
+          )}
+
+          {!searchLoading &&
+            displayList.map((user) => {
+              const isSelected = selectedUsers.some((u) => u.id === user.id);
+              return (
+                <button
+                  key={user.id}
+                  onClick={() => toggleUser(user)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition text-left ${
+                    isSelected ? "bg-[#2c6bed]/20 text-white" : "hover:bg-zinc-800/60"
                   }`}
                 >
-                  {isSelected && <Check className="w-3.5 h-3.5" />}
-                </div>
-                <Avatar
-                  name={user.display_name ?? user.username}
-                  avatarUrl={user.avatar_url}
-                  size="sm"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">
-                    {user.display_name ?? user.username}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-          {contacts.length === 0 && (
-            <p className="text-center text-zinc-500 text-xs py-8">
-              No contacts found. Add contacts first to create a group.
-            </p>
-          )}
+                  <div
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center transition ${
+                      isSelected
+                        ? "bg-[#2c6bed] border-[#2c6bed] text-white"
+                        : "border-zinc-700 bg-zinc-800"
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3.5 h-3.5" />}
+                  </div>
+                  <Avatar
+                    name={user.display_name ?? user.username}
+                    avatarUrl={user.avatar_url}
+                    size="sm"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">
+                      {user.display_name ?? user.username}
+                    </p>
+                    <p className="text-zinc-500 text-xs truncate">@{user.username}</p>
+                  </div>
+                </button>
+              );
+            })}
         </div>
 
         <div className="p-4 border-t border-zinc-800">
           <button
             onClick={() => createMutation.mutate()}
-            disabled={!name.trim() || selectedIds.length === 0 || createMutation.isPending}
+            disabled={!name.trim() || createMutation.isPending}
             className="w-full py-2.5 bg-[#2c6bed] hover:bg-[#3d79f2] disabled:opacity-50 text-white font-medium text-sm rounded-xl transition flex items-center justify-center gap-2"
           >
             {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Group
+            {selectedUsers.length > 0
+              ? `Create Group (${selectedUsers.length + 1} members)`
+              : "Create Group"}
           </button>
         </div>
       </div>

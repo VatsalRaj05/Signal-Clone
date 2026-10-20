@@ -89,15 +89,19 @@ class ConversationService:
         return await self.conv_repo.get_latest_message(conversation_id)
 
     async def create_group(self, caller_id: UUID, name: str, member_ids: list[UUID]) -> Conversation:
-        if caller_id not in member_ids:
-            member_ids.append(caller_id)
-            
+        clean_ids: list[UUID] = []
         for mid in member_ids:
+            if mid not in clean_ids:
+                clean_ids.append(mid)
+        if caller_id not in clean_ids:
+            clean_ids.append(caller_id)
+            
+        for mid in clean_ids:
             user = await self.user_repo.get_by_id(mid)
             if not user:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {mid} not found")
                 
-        return await self.conv_repo.create_group_conversation(caller_id, name, member_ids)
+        return await self.conv_repo.create_group_conversation(caller_id, name, clean_ids)
 
     async def create_message(self, conversation_id: UUID, sender_id: UUID, content: str, message_type: str = "TEXT") -> Message:
         is_member = await self.conv_repo.is_member(conversation_id, sender_id)
